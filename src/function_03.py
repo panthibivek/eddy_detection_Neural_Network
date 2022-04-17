@@ -189,7 +189,7 @@ class Interpolator:
         linear_interpolator: The final linear interpolated object
         days: default set to 30
         """
-        out_path =  "/work/ollie/bpanthi/nn_interpolation/"
+        out_path =  "/work/ollie/bpanthi/nn_interpolation_new/"
         outfile = (out_path+'ssh_gridded_'+str(self.year)+'_'+str(0+1).zfill(3)+'_'+str(self.month)+'_new.nc')
         if os.path.isfile(outfile):
             os.remove(outfile)
@@ -238,11 +238,14 @@ class Interpolator:
         """
         linear_interpolator_list = []
         tri_triang = self.data_triangulation_init()
-        days_dict = {1:31, 2:28 ,3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
-        if int(self.year) % 4: days_dict[1] = 29
-        days = days_dict[int(self.month)]
+        days_dict = {0:0, 1:31, 2:59 ,3:90, 4:120, 5:151, 6:181, 7:212, 8:243, 9:273, 10:304, 11:334, 12:365}
+        if not(int(self.year) % 4):
+            days_dict = {0:0, 1:31, 2:60 ,3:91, 4:121, 5:152, 6:182, 7:213, 8:244, 9:274, 10:305, 11:335, 12:366}
+        prev_month_days = days_dict[int(self.month)-1]
+        days = days_dict[int(self.month)] - prev_month_days
+        
         for day in range(days):
-            data_sample = self.data.ssh[(day+(int(self.month)-1)*days),:].values
+            data_sample = self.data.ssh[(day+prev_month_days),:].values
             triangularized_data = self.data_triangulation(tri_triang[0], tri_triang[1], data_sample)
             linear_interpolator_list.append(np.ma.masked_invalid(triangularized_data(self.lon2, self.lat2)))
         self.graph(linear_interpolator_list[0])
@@ -259,14 +262,19 @@ class Interpolator:
         by default set to 0
         """
         nn_interpolator_list = []
-        days_dict = {1:31, 2:28 ,3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
-        if int(self.year) % 4: days_dict[1] = 29
-        days = days_dict[int(self.month)]
+        #days_dict = {1:31, 2:28 ,3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
+        
+        days_dict = {0:0, 1:31, 2:59 ,3:90, 4:120, 5:151, 6:181, 7:212, 8:243, 9:273, 10:304, 11:334, 12:365}
+        if not(int(self.year) % 4):
+            days_dict = {0:0, 1:31, 2:60 ,3:91, 4:121, 5:152, 6:182, 7:213, 8:244, 9:274, 10:305, 11:335, 12:366}
+        prev_month_days = days_dict[int(self.month)-1]
+        days = days_dict[int(self.month)] - prev_month_days       
+        
         points = np.vstack((self.model_lon, self.model_lat)).T
         
         if mask_flag == 0:
             for day in range(days):
-                data_sample = self.data.ssh[(day+(int(self.month)-1)*days),:].values
+                data_sample = self.data.ssh[(day+prev_month_days),:].values
                 nn_interpolator = dask.delayed(self.nearest_nei_interpolator)(data_sample, points)
                 nn_interpolator_list.append(nn_interpolator)
                 
@@ -276,7 +284,7 @@ class Interpolator:
             triangularized_data = self.data_triangulation(tri_triang[0], tri_triang[1], data_sample)
             #We can reuse same triangularized_data as mask will be the same for all timesteps
             for day in range(days):
-                data_sample = self.data.ssh[(day+(int(self.month)-1)*days),:].values
+                data_sample = self.data.ssh[(day+prev_month_days),:].values
                 nn_interpolator = dask.delayed(self.nearest_nei_interpolator_mask)(triangularized_data(self.lon2, self.lat2), data_sample, points)
                 nn_interpolator_list.append(nn_interpolator)
  

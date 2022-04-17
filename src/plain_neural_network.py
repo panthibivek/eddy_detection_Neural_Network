@@ -46,7 +46,7 @@ def load_data_y(input_dir):
     data_y = data_y.seg_mask.to_numpy()
     data_y = np.float32(data_y)
     input_file_paths.pop(0)
-
+    
     for abs_name in input_file_paths:
         print(abs_name)
         temp = xr.open_dataset(abs_name)
@@ -91,7 +91,7 @@ def get_model(img_size, num_classes):
     
     for_concat = []
     p = inputs
-    for index, dropout_filter in zip(range(1,5,1),[(0.2,16),(0.3,32),(0.4,32),(0.5,32)]): 
+    for index, dropout_filter in zip(range(1,5,1),[(0.2,16),(0.3,16),(0.4,32),(0.5,32)]): 
         x = layers.SeparableConv2D(dropout_filter[1], 3, padding="same", use_bias=False)(p)
         x = layers.BatchNormalization()(x)
         x = layers.Activation("relu")(x)
@@ -107,16 +107,16 @@ def get_model(img_size, num_classes):
         elif index==4:
             p = x
 
-    for index, dropout in zip(range(3,0,-1),[(0.4,32),(0.3,32),(0.2,16)]):
+    for index, dropout_filter in zip(range(3,0,-1),[(0.4,32),(0.3,16),(0.2,16)]):
         x = concatenate([UpSampling2D((2,2))(p), for_concat[index-1]])
-        x = SeparableConv2D(filters, 3, padding="same", use_bias=False)(x) 
+        x = SeparableConv2D(dropout_filter[1], 3, padding="same", use_bias=False)(x) 
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
 
-        x = SeparableConv2D(16, 3, padding="same", use_bias=False)(x) 
+        x = SeparableConv2D(dropout_filter[1], 3, padding="same", use_bias=False)(x) 
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
-        x = Dropout(0.4)(x)
+        x = Dropout(dropout_filter[0])(x)
         p = x
 
     # Add a per-pixel classification layer
