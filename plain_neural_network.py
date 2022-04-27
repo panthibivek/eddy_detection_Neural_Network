@@ -129,6 +129,24 @@ def get_model(img_size, num_classes):
     model = keras.Model(inputs, outputs)
     return model
 
+def using_model(img_size, num_classes, input_dir_X, weight_path):
+    input_file_paths = sorted(
+    [
+        os.path.join(input_dir_X, fname)
+        for fname in os.listdir(input_dir_X)
+    ])
+    data_X = xr.open_mfdataset(input_file_paths,combine = 'nested', concat_dim="TIME")
+    data_X = data_X.ssh.to_numpy()
+    data_X = np.float32(data_X)
+
+    data_X[data_X>1000] = 0
+    pred_x = np.reshape(data_X,(len(data_X),img_size[0],img_size[1],1))
+    model = get_model(img_size, num_classes)
+    model.load_weights(weight_path)
+    preds_y = model.predict(pred_x)
+    mask = np.argmax(np.reshape(preds_y,(len(data_X),img_size[1],img_size[0],num_classes)), axis=-1)
+    preds_y = np.reshape(mask,(len(data_X), img_size[0],img_size[1]))
+    return preds_y
 
 # Free up RAM in case the model definition cells were run multiple times
 #keras.backend.clear_session()
